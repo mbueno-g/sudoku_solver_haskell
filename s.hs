@@ -19,25 +19,17 @@ procesa = do putStr "Dime el nombre del sudoku: "
              name <- getLine
              content <- readFile name
              let
-                line = readSudoku content
+                line = map init (readSudoku content)
              print line
 
 --Devuelve las lineas de un String
 readSudoku :: String -> [String]
 readSudoku xs = lines xs
 
+
 --Crea el tipo Sudoku
 toSudoku :: [String] -> [Fila]
 toSudoku xs = zipWith toFila xs xs
-
-{-toFila :: String -> Fila
-toFila xs = map toCelda xs
-
-toCelda :: Char -> Celda
-toCelda x 
-        | Data.Char.isDigit x && x > '0' && x < '9' = Definitivo (Data.Char.digitToInt x)
-        | otherwise = Nota [1,2,3,4,5,6,7,8,9]
--}
 
 toFila :: String -> String -> Fila
 toFila [] _ = []
@@ -50,6 +42,9 @@ toFila (x:xs) ys
 
 
 -----------------------  UPDATE   ---------------------------
+-- Lo actualiza TODO
+update :: Sudoku -> Sudoku
+update xs = definitivo (updateNotaf (updateNotac (juntarGrid (updateNotaGs 0 xs))))
 
 --Elementos definitivos de una Fila
 inRow :: Fila -> [Int]
@@ -67,11 +62,41 @@ updateNotaf (x:xs) = [updateFila lista x] ++ updateNotaf xs
 
 -- Actualiza Nota [Int] mirando la columna
 updateNotac :: Sudoku -> Sudoku
-updateNotac xs = updateNotaf (Data.List.transpose xs)
+updateNotac xs = Data.List.transpose (updateNotaf (Data.List.transpose xs))
 
 
 -- Actualiza Nota [Int] mirando las cuadrículas
 
+{--juntarGrid :: Sudoku -> Sudoku 
+juntarGrid [] = []
+juntarGrid xs = [foldl (++) [] (juntar3 0 ys),foldl (++) [] (juntar3 1 ys),foldl (++) [] (juntar3 2 ys)] ++ juntarGrid (drop 9 xs)
+                    where ys = take 9 xs
+-}
+
+juntarGrid :: Sudoku -> Sudoku 
+juntarGrid [] = []
+juntarGrid xs = [foldl (++) [] (juntar3 i ys) | i <- [0,1,2]] ++ juntarGrid (drop 9 xs)
+                    where ys = take 9 xs
+
+juntar3 :: Int -> Sudoku -> Sudoku
+juntar3 a xs 
+          | a >= length xs = []
+          | otherwise = [(xs !! a)] ++ juntar3 (a+3) xs
+
+updateNotaGs :: Int -> Sudoku -> Sudoku
+updateNotaGs 27 _ = []
+updateNotaGs a xs = updateNotag ys ys ++ updateNotaGs (a+3) xs
+                      where ys = subGridToRow a 1 xs
+
+updateNotag :: Sudoku -> Sudoku -> Sudoku
+updateNotag [] _ = []
+updateNotag (x:xs) ys = [updateFila lista x] ++ updateNotag xs ys
+                   where lista = concat (map inRow ys)
+
+subGridToRow:: Int -> Int -> Sudoku -> Sudoku
+subGridToRow a 4 _ = []
+subGridToRow a b xs = [take 3 (drop (a `mod` 9) (ys !! (b-1)))] ++ subGridToRow a (b+1) xs
+                         where ys = drop ((a`div`9)*3) xs
 
 
 -- Actualiza Nota [Int] mirando la fila
@@ -92,8 +117,6 @@ eliminaElems (x:xs) ys
 
 
 
-
-
 -----------------------   FILL SUDOKU   ---------------------------
 
 
@@ -105,10 +128,8 @@ toDefinitivo:: Fila -> Fila
 toDefinitivo [] = []
 toDefinitivo ((Definitivo x):xs) = [Definitivo x] ++ toDefinitivo xs
 toDefinitivo ((Nota x):xs)
-              | length (x) == 1 = [Definitivo (x !! 0)] ++ toDefinitivo xs
+              | length x == 1 = [Definitivo (x !! 0)] ++ toDefinitivo xs
               | otherwise = [Nota x] ++ toDefinitivo xs
-
-
 
 
 
