@@ -119,7 +119,7 @@ eliminaElems (x:xs) ys
 
 -----------------------   FILL SUDOKU   ---------------------------
 
-
+-- MÉTODO 1
 -- Convierte en definitivo el único elemento de la lista Nota [Int]
 definitivo :: Sudoku -> Sudoku
 definitivo xs = map toDefinitivo xs
@@ -131,6 +131,60 @@ toDefinitivo ((Nota x):xs)
               | length x == 1 = [Definitivo (x !! 0)] ++ toDefinitivo xs
               | otherwise = [Nota x] ++ toDefinitivo xs
 
+
+-- MÉTODO 2 : Compara las listas (Nota [Int]) de toda una fila y convierte en definitivo el elemento que solo está en una de esas listas
+
+updateFilaList :: Sudoku -> Sudoku
+updateFilaList [] = []
+updateFilaList (x:xs) = [updateFila3 lista x] ++ updateFilaList xs
+                   where lista = delRep (concatNota x)
+
+updateFila3 :: [Int] -> Fila -> Fila
+updateFila3 [] xs = xs
+updateFila3 (a:as) xs = updateFila3 as (updateFila2 a xs)
+
+updateFila2 :: Int -> Fila -> Fila
+updateFila2 a [] = []
+updateFila2 a ((Nota x):xs)
+               | a `elem` x = [Definitivo a] ++ xs   
+               | otherwise = [Nota x] ++ updateFila2 a xs
+updateFila2 a ((Definitivo x):xs) = [Definitivo x] ++ updateFila2 a xs
+--PARA ACTUALIZAR EL SUDOKU TRAS PONER UN DEFINITIVO HAY QUE LLAMAR A UPDATE
+
+-- Concatena las lista de Nota [Int]
+concatNota :: Fila -> [Int]
+concatNota [] = []
+concatNota ((Definitivo x):xs) = concatNota xs
+concatNota ((Nota x):xs) = x ++ concatNota xs
+
+
+-- elimina un elemento de una lista si está repetido
+delRep :: [Int] -> [Int]
+delRep [] = []
+delRep (x:xs)
+          | elemRep x xs /= 0 = delRep (delAllRep x xs)
+          | otherwise = [x] ++ delRep xs
+
+
+-- devuelve el número de repeticiones de un número
+elemRep :: Int -> [Int] -> Int
+elemRep n [] = 0
+elemRep n (x:xs) 
+            | x == n = 1 + elemRep n xs
+            | otherwise = elemRep n xs
+
+-- elimina todas las repeticiones de un numero
+delAllRep :: Int -> [Int] -> [Int]
+delAllRep x [] = []
+delAllRep x (y:ys)
+          | x == y = delAllRep x ys
+          | otherwise = [y] ++ delAllRep x ys
+
+
+-- MÉTODO 3 : Compara las listas (Nota [Int]) de toda una columna y convierte en definitivo el elemento que solo está en una de esas listas
+
+updateColumList :: Sudoku -> Sudoku
+updateColumList xs = Data.List.transpose (updateFilaList (Data.List.transpose xs))
 
 
 -----------------------   SHOW   ---------------------------
