@@ -25,47 +25,61 @@
   - Pointing pairs 
  -}
 
-{- REVISAR
-- deriving
-- cambiar procesa por un main
-- quitar provisional de Celda
--}
 
 import Data.Char
 import Data.List
 
-data Celda = Definitivo Int | Provisional Int | Nota [Int]
+data Celda = Definitivo Int | Nota [Int]
      deriving (Show, Read, Eq)
 type Fila = [Celda]
 type Sudoku = [Fila]
 
-procesa :: IO ()
-procesa = do putStr "Dime el nombre del sudoku: "
-             name <- getLine
-             content <- readFile name
-             let
-                line = lines content
-                sudoku = toSudoku line
-                solved = solveSudoku sudoku []
-             print(line)
-             putStr $ showSudoku solved
-             putStr $ showSudoku sudoku
-             writeFile "result.txt" (showSudoku solved)
+main :: IO ()
+main = do putStr "Dime el nombre del fichero de entrada: "
+          name <- getLine
+          content <- readFile name
+          let
+            line = lines content
+            sudoku = toSudoku line
+            solved = solveSudoku sudoku []
+          print "El sudoku a resolver es: "
+          putStr $ showSudoku sudoku
+          if unsolvable solved
+            then do print "No se ha podido resolver"
+            else do
+                print "El sudoku resuelto es: "
+                putStr $ showSudoku solved
+                writeFile ("result_" ++ name) (showSudoku solved)
 
 -- Función que aplica todos los métodos implementados (step) hasta resolverlo (solved)
 solveSudoku :: Sudoku -> Sudoku -> Sudoku
 solveSudoku xs ys
-            | and(map solved xs) = xs
-            | ys == xs = []
+            | solved xs = xs
+            | unsolvable xs = xs
+            | ys == xs = (filter solved (zipWith solveSudoku (multiSudoku xs) (repeat [])))!!0
             | otherwise = solveSudoku (step xs) xs
 
-solved :: Fila -> Bool
-solved [] = True
-solved (Definitivo x:xs) = True && solved xs
-solved (_:xs) = False
+unsolvable :: Sudoku -> Bool
+unsolvable xs = or (map unsolvableFila xs)
+
+unsolvableFila :: Fila -> Bool
+unsolvableFila [] = False
+unsolvableFila (Nota x:xs) 
+                  | x == [] = True
+                  | otherwise = unsolvableFila xs
+unsolvableFila (Definitivo x:xs) = unsolvableFila xs
+
+
+solved :: Sudoku -> Bool
+solved xs = and (map solvedFila xs)
+
+solvedFila :: Fila -> Bool
+solvedFila [] = True
+solvedFila (Definitivo x:xs) = True && solvedFila xs
+solvedFila (_:xs) = False
 
 step :: Sudoku -> Sudoku
-step xs = pairs (update (hidenSingles (update (nakedCandidates (update xs)))))
+step xs = pointingPairs(pairs (update (hidenSingles (update (nakedCandidates (update xs))))))
 
 --Devuelve las lineas de un String
 --readSudoku :: String -> [String]
@@ -363,13 +377,23 @@ pointingPairsColumna xs = Data.List.transpose (pointingPairsFila(Data.List.trans
 
 ----------- MÉTODO 5: FUERZA BRUTA
 
-{--bruteForce:: Sudoku -> Sudoku -> Sudoku
-bruteForce [] ys = []
-bruteForce (x:xs) (y:ys) = [bruteForceFila x y] + bruteForce xs
+multiSudoku :: Sudoku -> [Sudoku]
+multiSudoku xs = [bingo xs pos e 0 | e <- list]
+              where list = getNota pos xs
+                    pos = findLessPos xs xs 2 0
 
-bruteForceFila :: Fila -> Fila
-bruteForceFila (Nota x:xs) = [Definitivo x!!0] + bruteForceFila xs
-bruteForceFila (Nota x:xs) = [Provisional (bruteForceCelda x)]--}
+-- queremos cambiar la posicion (i,j) del Sudoku conviertiendolo en Definitivo e
+bingo :: Sudoku -> (Int, Int) -> Int -> Int -> Sudoku
+bingo [] _ _ _ = []
+bingo (x:xs) (j,i) e n = [bingoFila x (j,i) e n 0] ++ bingo xs (j,i) e (n+1)
+
+-- siempre vamos a encontrar una Nota en (j,i)
+bingoFila :: Fila -> (Int, Int) -> Int -> Int -> Int -> Fila
+bingoFila [] _ _ _ _ = []
+bingoFila (Nota x:xs) (j,i) e n m 
+                | i == m && j == n = [Definitivo e] ++ bingoFila xs (j,i) e n (m+1)
+                | otherwise = [Nota x] ++ bingoFila xs (j,i) e n (m+1)
+bingoFila (Definitivo x:xs) (j,i) e n m = [Definitivo x] ++ bingoFila xs (j,i) e n (m+1)         
 
 findLessPos :: Sudoku-> Sudoku -> Int -> Int -> (Int,Int)
 findLessPos [] ys n _ = findLessPos ys ys (n+1) 0
@@ -386,24 +410,11 @@ findNotaFila (Nota x:xs) n i
                 | otherwise = findNotaFila xs n (i+1)
 findNotaFila (_:xs) n i = findNotaFila xs n (i+1)
 
-
-
-{--getNota :: (Int, Int) -> Sudoku-> [Int]
+getNota :: (Int, Int) -> Sudoku-> [Int]
 getNota (i,j) xs = notaToLista ((drop j ((drop i xs)!!0))!!0)
 
 notaToLista :: Celda -> [Int]
 notaToLista (Nota x) = x
-
-findNota :: Sudoku-> Int -> (Int,Int)
-findNota [] n = (-1,-1)
-findNota (x:xs) n
-          | m == -1 = findNota xs (n+1)
-          | otherwise = (n,m)
-          where m = findNotaFila x 0 --}
-
-
-
-
 
 
 -----------------------   SHOW   ---------------------------
@@ -419,6 +430,5 @@ showSudoku = unlines . map (unwords . map showCelda)
 showPosSudoku :: Sudoku -> String
 showPosSudoku = unlines . map (unwords . map showCelda)
   where
-    showCelda (Provisional x) = show x
     showCelda (Nota xs) = show xs
     showCelda (Definitivo x) = show x
