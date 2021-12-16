@@ -81,10 +81,6 @@ solvedFila (_:xs) = False
 step :: Sudoku -> Sudoku
 step xs = pointingPairs(pairs (update (hidenSingles (update (nakedCandidates (update xs))))))
 
---Devuelve las lineas de un String
---readSudoku :: String -> [String]
---readSudoku xs = lines xs
-
 -- Convertimos la lista de string leida de un archivo en nuestro tipo Sudoku
 toSudoku :: [String] -> Sudoku
 toSudoku xs = zipWith toFila xs xs
@@ -169,7 +165,6 @@ juntarGrid2 :: Int -> Sudoku -> Sudoku
 juntarGrid2 a xs 
           | a >= length xs = []
           | otherwise = [(xs !! a)] ++ juntarGrid2 (a+3) xs
-
 
 
 
@@ -333,6 +328,9 @@ pairsSubgridLista as (x:xs) = [updatePairs c x] ++ pairsSubgridLista as xs
 pointingPairs :: Sudoku -> Sudoku
 pointingPairs xs = pointingPairsFila (pointingPairsColumna xs)
 
+
+----------- MÉTODO 4: POINTING PAIRS FILA
+
 pointingPairsFila :: Sudoku -> Sudoku
 pointingPairsFila [] = []
 pointingPairsFila (x:xs) = [updatePointingPairs (delRepLista pairs) x] ++ pointingPairsFila xs
@@ -370,12 +368,14 @@ delRepLista (x:xs)
            | otherwise = x:delRepLista xs
 
 
+----------- MÉTODO 4: POINTING PAIRS COLUMNA
+
 pointingPairsColumna :: Sudoku -> Sudoku
 pointingPairsColumna xs = Data.List.transpose (pointingPairsFila(Data.List.transpose xs))
 
 
 
------------ MÉTODO 5: FUERZA BRUTA
+----------- MÉTODO 5: MULTISUDOKU (FUERZA BRUTA)
 
 multiSudoku :: Sudoku -> [Sudoku]
 multiSudoku xs = [bingo xs pos e 0 | e <- list]
