@@ -34,7 +34,7 @@
 import Data.Char
 import Data.List
 
-data Celda = Definitivo Int |Provisional Int | Nota [Int]
+data Celda = Definitivo Int | Provisional Int | Nota [Int]
      deriving (Show, Read, Eq)
 type Fila = [Celda]
 type Sudoku = [Fila]
@@ -44,19 +44,20 @@ procesa = do putStr "Dime el nombre del sudoku: "
              name <- getLine
              content <- readFile name
              let
-                line = map init (lines content)
+                line = lines content
                 sudoku = toSudoku line
-                solved = solveSudoku sudoku
+                solved = solveSudoku sudoku []
              print(line)
              putStr $ showSudoku solved
              putStr $ showSudoku sudoku
              writeFile "result.txt" (showSudoku solved)
 
 -- Función que aplica todos los métodos implementados (step) hasta resolverlo (solved)
-solveSudoku :: Sudoku -> Sudoku
-solveSudoku xs
+solveSudoku :: Sudoku -> Sudoku -> Sudoku
+solveSudoku xs ys
             | and(map solved xs) = xs
-            | otherwise = solveSudoku (step xs)
+            | ys == xs = []
+            | otherwise = solveSudoku (step xs) xs
 
 solved :: Fila -> Bool
 solved [] = True
@@ -314,10 +315,13 @@ pairsSubgridLista as (x:xs) = [updatePairs c x] ++ pairsSubgridLista as xs
 
 
 ----------- MÉTODO 4: POINTING PAIRS: encontrar parejas en Nota [Int] que apunten a una celda que contiene uno de los elementos de la pareja
-
+-- [Int] solo contiene a esa pareja
 pointingPairs :: Sudoku -> Sudoku
-pointingPairs [] = []
-pointingPairs (x:xs) = [updatePointingPairs pairs x] ++ pointingPairs xs
+pointingPairs xs = pointingPairsFila (pointingPairsColumna xs)
+
+pointingPairsFila :: Sudoku -> Sudoku
+pointingPairsFila [] = []
+pointingPairsFila (x:xs) = [updatePointingPairs (delRepLista pairs) x] ++ pointingPairsFila xs
                         where pairs = getPairs x x
 
 getPairs :: Fila -> Fila -> [[Int]]
@@ -339,7 +343,66 @@ updatePointingPairs [] xs = xs
 updatePointingPairs (a:as) xs = updatePointingPairs as (updateOnePointingPair a xs)
 
 updateOnePointingPair :: [Int] -> Fila -> Fila
-updateOnePointingPair as (Nota x:xs) = [Nota [ y | y <- x, y `notElem` as]]
+updateOnePointingPair _ [] = []
+updateOnePointingPair as (Nota x:xs)
+                | x == as = [Nota x] ++ updateOnePointingPair as xs
+                | otherwise = [Nota [ y | y <- x, y `notElem` as]] ++ updateOnePointingPair as xs
+updateOnePointingPair as (Definitivo x:xs) = [Definitivo x] ++ updateOnePointingPair as xs
+
+delRepLista :: [[Int]] -> [[Int]]
+delRepLista [] = []
+delRepLista (x:xs)
+           | x `elem` xs = delRepLista xs
+           | otherwise = x:delRepLista xs
+
+
+pointingPairsColumna :: Sudoku -> Sudoku
+pointingPairsColumna xs = Data.List.transpose (pointingPairsFila(Data.List.transpose xs))
+
+
+
+----------- MÉTODO 5: FUERZA BRUTA
+
+{--bruteForce:: Sudoku -> Sudoku -> Sudoku
+bruteForce [] ys = []
+bruteForce (x:xs) (y:ys) = [bruteForceFila x y] + bruteForce xs
+
+bruteForceFila :: Fila -> Fila
+bruteForceFila (Nota x:xs) = [Definitivo x!!0] + bruteForceFila xs
+bruteForceFila (Nota x:xs) = [Provisional (bruteForceCelda x)]--}
+
+findLessPos :: Sudoku-> Sudoku -> Int -> Int -> (Int,Int)
+findLessPos [] ys n _ = findLessPos ys ys (n+1) 0
+findLessPos _ _ 9 _ = (-1,-1)
+findLessPos (x:xs) ys n j
+          | i == -1 = findLessPos xs ys n (j+1)
+          | otherwise = (j,i)
+          where i = findNotaFila x n 0 
+
+findNotaFila :: Fila -> Int -> Int -> Int
+findNotaFila [] n i = -1
+findNotaFila (Nota x:xs) n i
+                | length x == n = i
+                | otherwise = findNotaFila xs n (i+1)
+findNotaFila (_:xs) n i = findNotaFila xs n (i+1)
+
+
+
+{--getNota :: (Int, Int) -> Sudoku-> [Int]
+getNota (i,j) xs = notaToLista ((drop j ((drop i xs)!!0))!!0)
+
+notaToLista :: Celda -> [Int]
+notaToLista (Nota x) = x
+
+findNota :: Sudoku-> Int -> (Int,Int)
+findNota [] n = (-1,-1)
+findNota (x:xs) n
+          | m == -1 = findNota xs (n+1)
+          | otherwise = (n,m)
+          where m = findNotaFila x 0 --}
+
+
+
 
 
 
