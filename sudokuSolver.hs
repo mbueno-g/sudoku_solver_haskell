@@ -1,30 +1,8 @@
 {- 
  - PARTICIPANTES : Marcos Rocha Morales y Marina Bueno García
- - ASIGNATURA    : PRDE(HASKELL)
- - PROYECTO      : Solucionador de sudokus utilizando los siguientes métodos:
-
-  - Update: actualiza la lista en Nota [Int] de los números posibles en una casilla
-  Definitivo 3  Nota [1,2,3,4,5,6,7,8,9]  Definitivo 6  Definitivo 9  Definitivo 7  Definitivo 8  Nota [1,2,3,4,5,6,7,8,9]  Nota [1,2,3,4,5,6,7,8,9]  Nota [1,2,3,4,5,6,7,8,9]
-  Definitivo 3  Nota [1,2,4,5]  Definitivo 6  Definitivo 9  Definitivo 7  Definitivo 8  Nota [1,2,4,5]   Nota [1,2,4,5]  Nota [1,2,4,5] 
-
-  - Naked candidates: convierte en Definitivo Int aquellas celdas que sean Nota [Int] donde la lista solo contiene un elemento
-    Definitivo 3  Nota [1]  Definitivo 6  Definitivo 9  Definitivo 7  Definitivo 8  Nota [1,2,4,5]   Nota [1,2,4,5]  Nota [1,2,4,5] 
-    Definitivo 3  Definitivo 1  Definitivo 6  Definitivo 9  Definitivo 7  Definitivo 8  Nota [1,2,4,5]   Nota [1,2,4,5]  Nota [1,2,4,5] 
-
-  - Hiden singles: compara las listas (Nota [Int]) y convierte en definitivo los números que aparecen una sola vez en todas las listas
-    Supongamos que tenemos la siguiente fila:
-          Definitivo 3   Nota [1,2,4,5]   Definitivo 6   Definitivo 9   Definitivo 7   Definitivo 8   Nota [2,4]   Nota [2,5]   Nota [2,4,5]
-    Como el 1 aparece en todas las Nota [Int] una sola vez se puede convertir en definitivo:
-          Definitivo 3   Definitivo 1   Definitivo 6   Definitivo 9   Definitivo 7   Definitivo 8   Nota [2,4]   Nota [2,5]   Nota [2,4,5]
-
-  - Pairs: consiste en encontrar parejas que aparecen en 2 listas (Nota [Int]) y eliminar el resto de elementos que no sean esa pareja,
-    consiguiendo así acotar los números posibles en una celda
-      Definitivo 3   Nota [2,4,5]   Definitivo 6   Definitivo 9   Definitivo 7   Definitivo 8   Nota [1,4]   Nota [1,5]   Nota [1,4,5]
-      Definitivo 3   Nota [4,5]   Definitivo 6   Definitivo 9   Definitivo 7   Definitivo 8   Nota [1,4]   Nota [1,5]   Nota [4,5]
-
-  - Pointing pairs 
+ - ASIGNATURA    : PRDE (HASKELL)
+ - PROYECTO      : Solucionador de sudokus
  -}
-
 
 import Data.Char
 import Data.List
@@ -51,16 +29,17 @@ main = do putStr "Dime el nombre del fichero de entrada: "
                 putStr $ showSudoku solved
                 writeFile ("result_" ++ name) (showSudoku solved)
 
--- Función que aplica todos los métodos implementados (step) hasta resolverlo (solved)
+-- Función que aplica todos los métodos implementados (step) hasta resolverlo
 solveSudoku :: Sudoku -> Sudoku -> Sudoku
 solveSudoku xs ys
             | solved xs = xs
             | unsolvable xs = xs
-            | ys == xs = (filter solved (zipWith solveSudoku (multiSudoku xs) (repeat [])))!!0
+            | ys == xs = head (filter solved (zipWith solveSudoku (multiSudoku xs) (repeat [])))
             | otherwise = solveSudoku (step xs) xs
 
+-- Verifica si el sudoku es irresoluble o no está bien resuelto
 unsolvable :: Sudoku -> Bool
-unsolvable xs = or (map unsolvableFila xs)
+unsolvable xs = or (map unsolvableFila xs) || not(wellDone xs)
 
 unsolvableFila :: Fila -> Bool
 unsolvableFila [] = False
@@ -69,15 +48,30 @@ unsolvableFila (Nota x:xs)
                   | otherwise = unsolvableFila xs
 unsolvableFila (Definitivo x:xs) = unsolvableFila xs
 
-
+-- Verifica si un sudoku está resuelto
 solved :: Sudoku -> Bool
-solved xs = and (map solvedFila xs)
+solved xs = and (map solvedFila xs) && wellDone xs
 
 solvedFila :: Fila -> Bool
 solvedFila [] = True
 solvedFila (Definitivo x:xs) = True && solvedFila xs
 solvedFila (_:xs) = False
 
+-- Verifica si un sudoku está bien resuelto
+wellDone :: Sudoku -> Bool
+wellDone xs = wellFilas xs && wellColumnas xs && wellGrid xs
+
+wellFilas :: Sudoku -> Bool
+wellFilas [] = True
+wellFilas (x:xs) = and (map (<=1) [numRep (Definitivo e) x | e <- [1..9]]) && wellFilas xs
+
+wellColumnas :: Sudoku -> Bool
+wellColumnas xs = wellFilas (Data.List.transpose xs)
+
+wellGrid :: Sudoku -> Bool 
+wellGrid xs = wellFilas [concat(subGridToRow a 1 xs) | a <- [0,3..24]]
+
+-- Aplica todos los métodos implementados
 step :: Sudoku -> Sudoku
 step xs = pointingPairs(pairs (update (hidenSingles (update (nakedCandidates (update xs))))))
 
@@ -223,7 +217,7 @@ delRep i (x:xs)
           | otherwise = [x] ++ delRep i xs
 
 -- devuelve el número de veces que se repite un número en una lista
-numRep :: Int -> [Int] -> Int
+numRep :: Eq a => a -> [a] -> Int
 numRep n [] = 0
 numRep n (x:xs) 
             | x == n = 1 + numRep n xs
@@ -336,6 +330,7 @@ pointingPairsFila [] = []
 pointingPairsFila (x:xs) = [updatePointingPairs (delRepLista pairs) x] ++ pointingPairsFila xs
                         where pairs = getPairs x x
 
+-- Selecciona las notas de longitud 2 que aparecen 2 veces
 getPairs :: Fila -> Fila -> [[Int]]
 getPairs [] ys = []
 getPairs (Nota x:xs) ys
@@ -343,6 +338,7 @@ getPairs (Nota x:xs) ys
               | otherwise = getPairs xs ys
 getPairs (Definitivo x:xs) ys = getPairs xs ys
 
+-- Cuenta cuantas veces aparece una nota
 isThisPair :: [Int] -> Fila -> Int
 isThisPair as [] = 0
 isThisPair as (Nota x:xs)
@@ -350,6 +346,7 @@ isThisPair as (Nota x:xs)
             | otherwise = isThisPair as xs
 isThisPair as (Definitivo x:xs) = isThisPair as xs
 
+-- Actualiza las notas teniendo en cuenta una lista de parejas
 updatePointingPairs :: [[Int]] -> Fila -> Fila
 updatePointingPairs [] xs = xs
 updatePointingPairs (a:as) xs = updatePointingPairs as (updateOnePointingPair a xs)
@@ -361,6 +358,7 @@ updateOnePointingPair as (Nota x:xs)
                 | otherwise = [Nota [ y | y <- x, y `notElem` as]] ++ updateOnePointingPair as xs
 updateOnePointingPair as (Definitivo x:xs) = [Definitivo x] ++ updateOnePointingPair as xs
 
+-- Elimina las parejas repetidas
 delRepLista :: [[Int]] -> [[Int]]
 delRepLista [] = []
 delRepLista (x:xs)
@@ -376,18 +374,18 @@ pointingPairsColumna xs = Data.List.transpose (pointingPairsFila(Data.List.trans
 
 
 ----------- MÉTODO 5: MULTISUDOKU (FUERZA BRUTA)
+-- Buscamos la posición con menos notas y creamos tantos sudokus como la longitud de esas notas (probamos con cada nota)
 
 multiSudoku :: Sudoku -> [Sudoku]
 multiSudoku xs = [bingo xs pos e 0 | e <- list]
               where list = getNota pos xs
                     pos = findLessPos xs xs 2 0
 
--- queremos cambiar la posicion (i,j) del Sudoku conviertiendolo en Definitivo e
+-- Cambiar la posicion (i,j) del sudoku conviertiendolo en Definitivo e
 bingo :: Sudoku -> (Int, Int) -> Int -> Int -> Sudoku
 bingo [] _ _ _ = []
 bingo (x:xs) (j,i) e n = [bingoFila x (j,i) e n 0] ++ bingo xs (j,i) e (n+1)
 
--- siempre vamos a encontrar una Nota en (j,i)
 bingoFila :: Fila -> (Int, Int) -> Int -> Int -> Int -> Fila
 bingoFila [] _ _ _ _ = []
 bingoFila (Nota x:xs) (j,i) e n m 
@@ -395,9 +393,9 @@ bingoFila (Nota x:xs) (j,i) e n m
                 | otherwise = [Nota x] ++ bingoFila xs (j,i) e n (m+1)
 bingoFila (Definitivo x:xs) (j,i) e n m = [Definitivo x] ++ bingoFila xs (j,i) e n (m+1)         
 
+-- Devuelve la posición de la nota más corta
 findLessPos :: Sudoku-> Sudoku -> Int -> Int -> (Int,Int)
 findLessPos [] ys n _ = findLessPos ys ys (n+1) 0
-findLessPos _ _ 9 _ = (-1,-1)
 findLessPos (x:xs) ys n j
           | i == -1 = findLessPos xs ys n (j+1)
           | otherwise = (j,i)
@@ -410,6 +408,7 @@ findNotaFila (Nota x:xs) n i
                 | otherwise = findNotaFila xs n (i+1)
 findNotaFila (_:xs) n i = findNotaFila xs n (i+1)
 
+-- Consigue la celda en la posición (i,j) y devuelve la lista de la celda de tipo Nota [Int]
 getNota :: (Int, Int) -> Sudoku-> [Int]
 getNota (i,j) xs = notaToLista ((drop j ((drop i xs)!!0))!!0)
 
